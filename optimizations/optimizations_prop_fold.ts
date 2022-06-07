@@ -1,8 +1,5 @@
-import { setMaxListeners } from "events";
-import { start } from "repl";
 import { Parameter, Type } from "../ast";
 import { BasicBlock, Expr, FunDef, Program, Stmt, Value, VarInit } from "../ir";
-import { tcStmt } from "../type-check";
 import { Env, generateEnvironmentFunctions, generateEnvironmentProgram, generateEnvironmentProgramForLiveness } from "./optimization_common";
 import { checkIfFoldableBinOp, checkPropagateValEquality, checkStmtEquality, checkValueEquality, duplicateEnv, evaluateBinOp, evaluateUniOp, isTagBigInt, isTagNumber } from "./optimization_utils";
 
