@@ -3,6 +3,7 @@ import { BasicBlock, Expr, FunDef, Program, Stmt, Value, VarInit } from "../ir";
 import { Env, generateEnvironmentFunctions, generateEnvironmentProgram, generateEnvironmentProgramForLiveness } from "./optimization_common";
 import { checkIfFoldableBinOp, checkPropagateValEquality, checkStmtEquality, checkValueEquality, duplicateEnv, evaluateBinOp, evaluateUniOp, isTagBigInt, isTagNumber } from "./optimization_utils";
 
+const indexBoundCheckMethod: string = "check_index_out_of_bounds";
 
 export type propagateVal = {
     tag: "nac" | "val" | "undef", value?: Value<any>;
@@ -72,7 +73,7 @@ export class constPropEnv extends Env {
                     if (optimizedStart.tag !== "id" || optimizedOffset.tag === "id" || optimizedOffset.tag === "none")
                         break;
                     const generatedVarName = optimizedStart.name + "$$" + optimizedOffset.value.toString();
-                    if (statement.value.tag === "id"){
+                    if (optimizedValue.tag === "id"){
                         outEnv.vars.set(generatedVarName, {tag: "nac"});
                     }
                     outEnv.vars.set(generatedVarName, {tag: "val", value: optimizedValue});
@@ -132,7 +133,7 @@ export function compareIndexVLength(indexValue: BigInt, lengthValue: BigInt): bo
 }
 
 export function shouldOptimizeBoundCheck(expr: Expr<any>, env: Env): boolean{
-    if (expr.tag !== "call" || expr.name !== "check_index_out_of_bounds")
+    if (expr.tag !== "call" || expr.name !== indexBoundCheckMethod)
         throw new Error("Compiler Error - Method meant to optimize Bound checking expressions");
     var indexValue: BigInt;
     var lengthValue: BigInt;
@@ -173,7 +174,7 @@ export function shouldOptimizeBoundCheck(expr: Expr<any>, env: Env): boolean{
 }
 
 export function shouldOptimizeBoundCheckStmt(stmt: Stmt<any>, env: Env): boolean{
-    if (stmt.tag !== "expr" || stmt.expr.tag !== "call" || stmt.expr.name !== "check_index_out_of_bounds")
+    if (stmt.tag !== "expr" || stmt.expr.tag !== "call" || stmt.expr.name !== indexBoundCheckMethod)
         throw new Error("Compiler Error - Method meant to optimize Bound checking statements");
     return shouldOptimizeBoundCheck(stmt.expr, env);
 }
@@ -247,7 +248,7 @@ function optimizeStatements(stmt: Stmt<any>, env: Env): Stmt<any>{
             var optimizedValue: Value<any> = optimizeValue(stmt.value, env);
             return {...stmt, value: optimizedValue};
         case "expr":
-            if (stmt.expr.tag === "call" && stmt.expr.name === "check_index_out_of_bounds" && shouldOptimizeBoundCheckStmt(stmt, env)) return {tag: "pass"};
+            if (stmt.expr.tag === "call" && stmt.expr.name === indexBoundCheckMethod && shouldOptimizeBoundCheckStmt(stmt, env)) return {tag: "pass"};
             var optimizedExpression: Expr<any> = optimizeExpression(stmt.expr, env);
             return {...stmt, expr: optimizedExpression};
         case "pass":
@@ -261,10 +262,15 @@ function optimizeStatements(stmt: Stmt<any>, env: Env): Stmt<any>{
             var optimizedStart = optimizeValue(stmt.start, env);
             var optimizedOffset = optimizeValue(stmt.offset, env);
             var optimizedValue = optimizeValue(stmt.value, env);
-            if (optimizedStart.tag !== "id" || optimizedOffset.tag === "id" || optimizedOffset.tag === "none" || !env.has(optimizedStart.name) || (env.get(optimizedStart.name).tag === "nac"))
+            if (optimizedStart.tag !== "id" 
+            || optimizedOffset.tag === "id" 
+            || optimizedOffset.tag === "none" 
+            || !env.has(optimizedStart.name) 
+            || (env.get(optimizedStart.name).tag === "nac")
+            )
                 return stmt;
             const generatedVarName = optimizedStart.name + "$$" + optimizedOffset.value.toString();
-            if (stmt.value.tag === "id"){
+            if (optimizedValue.tag === "id"){
                 env.set(generatedVarName, {tag: "nac"});
             }
             env.set(generatedVarName, {tag: "val", value: optimizedValue});
