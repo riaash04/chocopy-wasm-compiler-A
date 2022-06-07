@@ -64,6 +64,10 @@ export function checkCopyValEquality(a: copyVal, b: copyVal): boolean {
 }
 
 export function checkPropagateValEquality(a: propagateVal, b: propagateVal): boolean {
+    if (a === undefined && b === undefined)
+        return true;
+    if (a === undefined || b === undefined)
+        return false;
     if (a.tag !== b.tag)
         return false;
     if (a.tag === "val") {
